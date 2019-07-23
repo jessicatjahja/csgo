@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	ip := "0.0.0.0"
+	ip := "localhost"
 	port := "8081"
 	addr := ip + ":" + port
 

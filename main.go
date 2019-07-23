@@ -5,15 +5,15 @@ import (
 	"log"
 	"net"
 	"strings"
+	"sync"
 )
 
 func main() {
-	listener, err := net.Listen("tcp", "0.0.0.0:8081")
+	operator := New()
+	listener, err := net.Listen("tcp", "localhost:8081")
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	cache := make(map[string]string)
 
 	for {
 		conn, err := listener.Accept()
@@ -21,11 +21,25 @@ func main() {
 			log.Fatal(err)
 		}
 
-		go handleConnection(conn, cache)
+		go operator.handleConnection(conn)
 	}
 }
 
-func handleConnection(conn net.Conn, cache map[string]string) {
+// Operator does things
+type Operator struct {
+	mutex sync.Mutex
+	Cache map[string]string
+}
+
+// New is an Operator constructor
+func New() *Operator {
+	operator := new(Operator)
+	operator.Cache = make(map[string]string)
+
+	return operator
+}
+
+func (op *Operator) handleConnection(conn net.Conn) {
 	bufferBytes, err := bufio.NewReader(conn).ReadBytes('\n')
 	if err != nil {
 		log.Println(err)
@@ -42,13 +56,13 @@ func handleConnection(conn net.Conn, cache map[string]string) {
 	switch key {
 	case "get":
 		value := strings.Split(message, " ")[1]
-		result := cache[value]
+		result := op.Cache[value]
 		conn.Write([]byte(result + "\n"))
 		break
 	case "set":
 		setKey := strings.Split(message, " ")[1]
 		setValue := strings.Split(message, " ")[2]
-		cache[setKey] = setValue
+		op.Cache[setKey] = setValue
 
 		conn.Write([]byte("200\n"))
 		break
@@ -57,5 +71,5 @@ func handleConnection(conn net.Conn, cache map[string]string) {
 		break
 	}
 
-	handleConnection(conn, cache)
+	op.handleConnection(conn)
 }
